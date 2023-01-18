@@ -25,7 +25,7 @@ public class PackageObjectExplorer : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
+				"Core", "Kismet",
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);

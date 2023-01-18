@@ -1,6 +1,8 @@
 ﻿#include "SPackageObjectExplorer.h"
 
 #include "PackageObjectExplorer.h"
+#include "Debugging/SKismetDebugTreeView.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/SRichTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "PackageObjectExplorer"
@@ -17,16 +19,48 @@ void SPackageObjectExplorer::Construct(const FArguments& InArgs)
 {
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(2.0f)
 		[
-			SNew(SBorder)
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
 			[
-				SAssignNew(TreeView, STreeView<TSharedPtr<FObjectExploreEntity>>)
-				.TreeItemsSource(&RootEntities)
-				.OnGenerateRow(this, &SPackageObjectExplorer::OnGenerateRow)
-				.OnGetChildren(this, &SPackageObjectExplorer::OnGetChildren)
+				SNew(SScrollBox)
+				.Orientation(Orient_Horizontal)
+				+ SScrollBox::Slot()
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.FillHeight(1.0f)
+					[
+						SNew(SBorder)
+						[
+							SAssignNew(TreeView, STreeView<TSharedPtr<FObjectExploreEntity>>)
+							.TreeItemsSource(&RootEntities)
+							.OnGenerateRow(this, &SPackageObjectExplorer::OnGenerateRow)
+							.OnGetChildren(this, &SPackageObjectExplorer::OnGetChildren)
+							.OnSelectionChanged(this, &SPackageObjectExplorer::OnSelectionChanged)
+						]
+					]
+				]
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			[
+				SAssignNew(DebugTreeView, SKismetDebugTreeView)
+				.HeaderRow
+				(
+					SNew(SHeaderRow)
+					.Visibility(EVisibility::Collapsed)
+					+ SHeaderRow::Column(SKismetDebugTreeView::ColumnId_Name)
+					+ SHeaderRow::Column(SKismetDebugTreeView::ColumnId_Value)
+				)
 			]
 		]
 	];
@@ -39,7 +73,7 @@ void SPackageObjectExplorer::SetObjects(const TArray<UObject*>& InObjects)
 	for (const UObject* Object : InObjects)
 	{
 		const TSharedPtr<FObjectExploreEntity> Entity = MakeShareable(new FObjectExploreEntity());
-		UObject* TargetObject=Object->GetPackage();
+		UObject* TargetObject = Object->GetPackage();
 		RecursionLogInnerObjects(TargetObject, Entity, &Context);
 		RootEntities.Add(Entity->Children[0]);
 	}
@@ -73,16 +107,24 @@ TSharedRef<ITableRow> SPackageObjectExplorer::OnGenerateRow(TSharedPtr<FObjectEx
                                                             const TSharedRef<STableViewBase>& OwnerTable)
 {
 	FFormatNamedArguments Args;
-	Args.Add(TEXT("ObjectName"), FText::FromString(InTreeElement->Object?InTreeElement->Object->GetName():TEXT("Unknow")));
-	Args.Add(TEXT("ClassName"),InTreeElement->Object?InTreeElement->Object->GetClass()->GetDisplayNameText():LOCTEXT("Unknow","Unknow"));
-	Args.Add(TEXT("ClassRawName"),InTreeElement->Object?FText::FromString(InTreeElement->Object->GetClass()->GetName()):LOCTEXT("Unknow","Unknow"));
-	const UClass* Native=nullptr;
-	if(InTreeElement->Object)
+	Args.Add(TEXT("ObjectName"), FText::FromString(InTreeElement->Object
+		                                               ? InTreeElement->Object->GetName()
+		                                               : TEXT("Unknow")));
+	Args.Add(TEXT("ClassName"), InTreeElement->Object
+		                            ? InTreeElement->Object->GetClass()->GetDisplayNameText()
+		                            : LOCTEXT("Unknow", "Unknow"));
+	Args.Add(TEXT("ClassRawName"), InTreeElement->Object
+		                               ? FText::FromString(InTreeElement->Object->GetClass()->GetName())
+		                               : LOCTEXT("Unknow", "Unknow"));
+	const UClass* Native = nullptr;
+	if (InTreeElement->Object)
 	{
-		for(Native=InTreeElement->Object->GetClass();!Native->IsNative();Native=Native->GetSuperClass());
+		for (Native = InTreeElement->Object->GetClass(); !Native->IsNative(); Native = Native->GetSuperClass());
 	}
-	Args.Add(TEXT("NativeCPPClassName"),Native?Native->GetDisplayNameText():LOCTEXT("Unknow","Unknow"));
-	Args.Add(TEXT("NativeCPPClassRawName"),Native?FText::FromString(Native->GetName()):LOCTEXT("Unknow","Unknow"));
+	Args.Add(TEXT("NativeCPPClassName"), Native ? Native->GetDisplayNameText() : LOCTEXT("Unknow", "Unknow"));
+	Args.Add(TEXT("NativeCPPClassRawName"), Native
+		                                        ? FText::FromString(Native->GetName())
+		                                        : LOCTEXT("Unknow", "Unknow"));
 	return SNew(STableRow<TSharedPtr<FObjectExploreEntity>>, OwnerTable)
 	[
 		SNew(SHorizontalBox)
@@ -103,10 +145,11 @@ TSharedRef<ITableRow> SPackageObjectExplorer::OnGenerateRow(TSharedPtr<FObjectEx
 		// 	.Text(FText::Format(LOCTEXT("CPPName","-( {NativeCPPClassName} [{NativeCPPClassRawName}] )"),Args))
 		// 	.ColorAndOpacity(FLinearColor::Yellow)
 		// ]
-		+SHorizontalBox::Slot()
+		+ SHorizontalBox::Slot()
 		[
 			SNew(SRichTextBlock)
-			.Text(FText::Format(LOCTEXT("RichMessage","<RichTextBlock.TextHighlight>{ObjectName}</> ( <RichTextBlock.TextHighlight>{ClassName}</> [<RichTextBlock.Bold>{ClassRawName}</>] ) -<RichTextBlock.TextHighlight>{NativeCPPClassName}</> [<RichTextBlock.Bold>{NativeCPPClassRawName}</>]"),Args))
+			.Text(FText::Format(LOCTEXT("RichMessage",
+			                            "<RichTextBlock.TextHighlight>{ObjectName}</> ( <RichTextBlock.TextHighlight>{ClassName}</> [<RichTextBlock.Bold>{ClassRawName}</>] ) -<RichTextBlock.TextHighlight>{NativeCPPClassName}</> [<RichTextBlock.Bold>{NativeCPPClassRawName}</>]"), Args))
 			.DecoratorStyleSet(&FEditorStyle::Get())
 		]
 	];
@@ -116,6 +159,17 @@ void SPackageObjectExplorer::OnGetChildren(TSharedPtr<FObjectExploreEntity> Obje
                                            TArray<TSharedPtr<FObjectExploreEntity>>& Children)
 {
 	Children = ObjectExploreEntity->Children;
+}
+
+void SPackageObjectExplorer::OnSelectionChanged(TSharedPtr<FObjectExploreEntity> ObjectExploreEntity,
+                                                ESelectInfo::Type Arg)
+{
+	if (ObjectExploreEntity.IsValid() && ObjectExploreEntity->Object)
+	{
+		DebugTreeView->ClearTreeItems();
+		const FDebugTreeItemPtr NewPtr = SKismetDebugTreeView::MakeParentItem(ObjectExploreEntity->Object);
+		DebugTreeView->AddTreeItemUnique(NewPtr);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

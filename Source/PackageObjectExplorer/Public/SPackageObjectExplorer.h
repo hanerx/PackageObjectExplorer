@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "PackageObjectExplorerStructs.h"
+#include "Debugging/SKismetDebugTreeView.h"
 
 class FExportObjectInnerContext;
 
@@ -15,6 +16,7 @@ public:
 
 	virtual ~SPackageObjectExplorer() override;
 
+
 	
 	void Construct( const FArguments& InArgs );
 
@@ -28,10 +30,13 @@ protected:
 	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FObjectExploreEntity> InTreeElement, const TSharedRef<STableViewBase>& OwnerTable);
 
 	void OnGetChildren(TSharedPtr<FObjectExploreEntity> ObjectExploreEntity, TArray<TSharedPtr<FObjectExploreEntity>>& Children);
+
+	void OnSelectionChanged(TSharedPtr<FObjectExploreEntity> ObjectExploreEntity, ESelectInfo::Type Arg);
 	
 private:
 	TSharedPtr<STreeView<TSharedPtr<FObjectExploreEntity>>> TreeView;
 	
 	TArray<TSharedPtr<FObjectExploreEntity>> RootEntities;
+	TSharedPtr<SKismetDebugTreeView> DebugTreeView;
 };
 
